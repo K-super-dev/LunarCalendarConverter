@@ -1,6 +1,7 @@
 import holidayKr from 'holiday-kr';
 
 export default async function handler(req, res) {
+    res.setHeader("Access-Control-Allow-Origin", "*"); // CORS 헤더 추가
     const { solarDate, untilYear } = req.query; // 예: "20250430"
 
     if (!solarDate || !/^\d{8}$/.test(solarDate) || !untilYear || !/^\d{4}$/.test(untilYear)) {
