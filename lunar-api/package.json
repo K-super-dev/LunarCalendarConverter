@@ -1,0 +1,8 @@
+{
+    "name": "holiday-kr-api",
+    "version": "1.0.0",
+    "type": "module",
+    "dependencies": {
+      "holiday-kr": "0.1.5"
+    }
+  }
