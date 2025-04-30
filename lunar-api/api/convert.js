@@ -2,15 +2,15 @@ import holidayKr from 'holiday-kr';
 
 export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", "*"); // CORS 헤더 추가
-    const { solarDate, untilYear } = req.query; // 예: "20250430"
+    const { lunarDate, untilYear } = req.query; // 예: "20250430"
 
-    if (!solarDate || !/^\d{8}$/.test(solarDate) || !untilYear || !/^\d{4}$/.test(untilYear)) {
+    if (!lunarDate || !/^\d{8}$/.test(lunarDate) || !untilYear || !/^\d{4}$/.test(untilYear)) {
       return res.status(400).json({ error: "날짜 형식이 잘못되었습니다." });
     }
     
-    const year = solarDate.slice(0, 4);
-    const month = solarDate.slice(4, 6);
-    const day = solarDate.slice(6, 8);
+    const year = lunarDate.slice(0, 4);
+    const month = lunarDate.slice(4, 6);
+    const day = lunarDate.slice(6, 8);
 
   try {
     const startYear = parseInt(year);
@@ -18,11 +18,11 @@ export default async function handler(req, res) {
     const results = [];
 
     for (let y = startYear; y <= endYear; y++) {
-      const lunarDay = holidayKr.getLunar(String(y), month, day);
-      results.push({ year: y , lunarDay });
+      const solarDate = holidayKr.getSolar(String(y), month, day);
+      results.push({ year: y , solarDate });
     }
 
-    res.status(200).json({ solarDate: solarDate, range: `${startYear}-${endYear}`, results });
+    res.status(200).json({ lunarDate: lunarDate.slice(4, 8), range: `${startYear}-${endYear}`, results });
   } catch (err) {
     res.status(500).json({ error: "변환 중 오류 발생", detail: err.message });
   }
