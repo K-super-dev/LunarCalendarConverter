@@ -11,14 +11,21 @@
 
     <!-- 음력 날짜 선택 -->
     <div class="mb-3">
-      <label for="lunarDate" class="form-label">음력 날짜 선택</label>
-      <input type="date" class="form-control" id="lunarDate">
+      <label for="lunarDate" class="form-label">음력 날짜 입력</label>
+      <input type="number" class="form-control" id="lunarDate" placeholder="음력 날짜[MMDD] (예: 0401)">
     </div>
 
-    <!-- 변환할 연수 입력 -->
+    <!-- 변환할 연도 범위 입력 -->
     <div class="mb-3">
-      <label for="yearsToConvert" class="form-label">몇 년분 변환할까?</label>
-      <input type="number" class="form-control" id="yearsToConvert" min="1" max="20" value="5">
+      <label class="form-label">몇 년부터 몇 년까지 확인</label>
+      <div class="row">
+        <div class="col">
+          <input type="number" class="form-control" id="startYearInput" placeholder="시작 연도 (예: 1800)">
+        </div>
+        <div class="col">
+          <input type="number" class="form-control" id="endYearInput" placeholder="끝 연도 (예: 2101)">
+        </div>
+      </div>
     </div>
 
     <!-- 이벤트 제목 입력 -->
@@ -34,25 +41,8 @@
     </div>
     <!-- 변환된 날짜 표시 -->
     <div class="mb-4">
-      <label class="form-label">변환된 날짜 표시</label>
+      <label class="form-label">변환된 양력 날짜</label>
       <div id="convertedDates">
-        <span class="badge bg-primary mb-2">2025: 2월 15일</span>
-        <div class="accordion" id="accordionYears">
-          <!-- 예시 접기형식 -->
-          <div class="accordion-item">
-            <h2 class="accordion-header" id="heading2026">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2026" aria-expanded="false" aria-controls="collapse2026">
-                2026년 변환된 날짜
-              </button>
-            </h2>
-            <div id="collapse2026" class="accordion-collapse collapse" aria-labelledby="heading2026" data-bs-parent="#accordionYears">
-              <div class="accordion-body">
-                2월 3일
-              </div>
-            </div>
-          </div>
-          <!-- 나머지 년도들도 이런 식으로 추가 -->
-        </div>
       </div>
     </div>
 
@@ -60,7 +50,7 @@
         <div class="mb-3">
             <button class="btn btn-primary" id="convertLunarBtn">음력으로 변환</button>
     <!-- ICS 파일 출력 버튼 -->
-    <button class="btn btn-success" id="generateIcsBtn">ICS 파일로 출력</button>
+    <button class="btn btn-success" id="generateIcsBtn" disabled>ICS 파일로 출력</button>
 </div>
   </div>
 
@@ -72,25 +62,25 @@
 document.addEventListener("DOMContentLoaded", () => {
   const API_BASE_URL = window.API_BASE_URL || 'http://localhost:3000';
   const lunarDateInput = document.getElementById("lunarDate");
-  const yearsInput = document.getElementById("yearsToConvert");
+  const startYearInput = document.getElementById("startYearInput");
+  const endYearInput = document.getElementById("endYearInput");
   const convertedDatesDiv = document.getElementById("convertedDates");
   const generateBtn = document.getElementById("generateIcsBtn");
   const convertLunarBtn = document.getElementById("convertLunarBtn");
-  
+  const eventTitleInput = document.getElementById("eventTitle");
+  const eventDetailsInput = document.getElementById("eventDetails");
+
   convertLunarBtn.addEventListener("click", async () => {
-    const lunarDate = lunarDateInput.value;
-    const years = parseInt(yearsInput.value);
-    if (!lunarDate || isNaN(years)) {
-      alert("날짜와 연수 모두 입력해주세요.");
+    const lunarDate = parseInt(lunarDateInput.value);
+    const startYear = parseInt(startYearInput.value);
+    const endYear = parseInt(endYearInput.value);
+    if (isNaN(lunarDate) || isNaN(startYear) || isNaN(endYear) || startYear > endYear) {
+      alert("음력 날짜와 올바른 연도 범위를 입력해주세요.");
       return;
     }
 
-    const [year, month, day] = lunarDate.split("-");
-    const untilYear = parseInt(year) + years - 1;
-    const yyyymmdd = `${year}${month}${day}`;
-
     try {
-      const res = await fetch(`${API_BASE_URL}/api/convert?solarDate=${yyyymmdd}&untilYear=${untilYear}`);
+      const res = await fetch(`${API_BASE_URL}/api/convert?solarDate=${startYear}`+`${lunarDate}`.padStart(4, '0')+`&untilYear=${endYear}`);
       const data = await res.json();
       if (data.error) {
         alert(data.error);
@@ -99,28 +89,72 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const list = data.results;
       convertedDatesDiv.innerHTML = '';
-      list.forEach((item, index) => {
-        const label = document.createElement("div");
-        label.className = "mb-2";
-        label.innerHTML = index === 0
-          ? `<span class="badge bg-primary">${item.year}: ${item.lunarDay}</span>`
-          : `
-            <div class="accordion-item">
-              <h2 class="accordion-header" id="heading${item.year}">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${item.year}" aria-expanded="false" aria-controls="collapse${item.year}">
-                  ${item.year}년 변환된 날짜
-                </button>
-              </h2>
-              <div id="collapse${item.year}" class="accordion-collapse collapse" aria-labelledby="heading${item.year}" data-bs-parent="#accordionYears">
-                <div class="accordion-body">${item.lunarDay}</div>
-              </div>
-            </div>`;
-        convertedDatesDiv.appendChild(label);
+
+      const listGroup = document.createElement("ul");
+      listGroup.className = "list-group";
+
+      list.forEach((item) => {
+        const ld = item.lunarDay;
+        const lunarString = `${ld.year}년 ${ld.month}월 ${ld.day}일 (${ld.dayOfWeek})${ld.leapMonth ? ' [윤달]' : ''}`;
+        const li = document.createElement("li");
+        li.className = "list-group-item";
+        li.textContent = `${lunarString}`;
+        listGroup.appendChild(li);
       });
+
+      convertedDatesDiv.appendChild(listGroup);
+      generateBtn.disabled = false;
+
     } catch (err) {
       console.error("API 호출 오류:", err);
       alert("API 호출 중 오류 발생");
     }
+  });
+
+  generateBtn.addEventListener("click", () => {
+    
+    if (!eventTitleInput.value.trim()) {
+      alert("이벤트 제목을 입력해주세요.");
+      return;
+    }
+
+    const listItems = convertedDatesDiv.querySelectorAll("li");
+    const title = eventTitleInput.value;
+    const description = eventDetailsInput.value || "";
+
+    const lines = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "CALSCALE:GREGORIAN",
+      "PRODID:-//LunarCalendarConverter//ICS Export//EN"
+    ];
+
+    listItems.forEach((li, index) => {
+      const dateText = li.textContent.match(/(\d{4})년 (\d{1,2})월 (\d{1,2})일/);
+      if (dateText) {
+        const [_, year, month, day] = dateText;
+        const dt = `${year}${month.padStart(2, "0")}${day.padStart(2, "0")}`;
+        lines.push(
+          "BEGIN:VEVENT",
+          `UID:lunar-${index}@lunarcalendar`,
+          `DTSTAMP:${dt}T090000Z`,
+          `DTSTART;VALUE=DATE:${dt}`,
+          `SUMMARY:${title}`,
+          `DESCRIPTION:${description}`,
+          "END:VEVENT"
+        );
+      }
+    });
+
+    lines.push("END:VCALENDAR");
+
+    const blob = new Blob([lines.join("\r\n")], { type: "text/calendar" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "converted_dates.ics";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   });
 });
   </script>
